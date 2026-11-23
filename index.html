@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Unit Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14161a">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1b1d21;--mute:#6b7280;--line:#e5e2dc;--acc:#b4531f;--accink:#fff;--soft:#f6e6dc;--danger:#b42318}
+@media(prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1d2026;--ink:#ecebe8;--mute:#9aa0aa;--line:#2b2f37;--acc:#e08a4f;--accink:#1a1206;--soft:#3a2a1f;--danger:#f97066}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,Roboto,sans-serif}
+body{padding:12px 12px calc(76px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
+h1{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:4px 2px 10px;font-weight:600}
+h2{font-size:15px;margin:18px 2px 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:8px}
+.sp{flex:1}
+.mute{color:var(--mute);font-size:13px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+input,select{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+input[type=date]{flex:1;text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;min-height:40px}
+.chip.on{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
+.ic{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:22px;line-height:1}
+.ic:disabled{opacity:.35}
+.btn{background:var(--acc);color:var(--accink);border:0;border-radius:12px;padding:12px 16px;font-weight:600;min-height:44px}
+.btn.alt{background:var(--card);color:var(--ink);border:1px solid var(--line);font-weight:500}
+.btn.danger{background:var(--danger);color:#fff}
+.btn.block{width:100%}
+.big{font-size:44px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-size:22px;letter-spacing:-.01em}
+.stat span{font-size:12px;color:var(--mute)}
+.pick{display:flex;width:100%;justify-content:space-between;align-items:center;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;min-height:52px}
+.pick:active{background:var(--soft)}
+.pick .u{color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:10px}
+.pick .u b{color:var(--acc)}
+.li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border-bottom:0}
+.li .n{flex:1;min-width:0}
+.li .n div:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.x{background:none;border:0;color:var(--mute);font-size:20px;width:40px;height:40px}
+.chartbox{position:relative;height:260px}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:5}
+nav button{flex:1;background:none;border:0;padding:10px 0;border-radius:10px;color:var(--mute);font-size:13px;font-weight:500}
+nav button.on{color:var(--acc);background:var(--soft);font-weight:700}
+#toast{position:fixed;left:12px;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);border-radius:12px;padding:12px 14px;display:none;align-items:center;gap:12px;z-index:9;max-width:696px;margin:0 auto}
+#toast.show{display:flex}
+#toast button{background:none;border:0;color:var(--acc);font-weight:700;padding:4px 8px}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);padding:18px;width:min(92vw,420px)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+.f{display:flex;flex-direction:column}
+.f input,.f select{width:100%}
+.hide{display:none!important}
+table{width:100%;border-collapse:collapse}
+</style>
+</head>
+<body>
+<main id="main"></main>
+<div id="toast"><span id="toastMsg" class="sp"></span><button id="toastBtn" class="hide">Undo</button></div>
+<dialog id="dlg"></dialog>
+<nav>
+  <button data-tab="log">Log</button>
+  <button data-tab="trends">Trends</button>
+  <button data-tab="totals">Totals</button>
+  <button data-tab="cocktails">Cocktails</button>
+  <button data-tab="data">Data</button>
+</nav>
+<input type="file" id="file" accept=".json,application/json" class="hide">
+<script src="chart.umd.min.js"></script>
+<script src="xlsx.mini.min.js"></script>
+<script>
+'use strict';
+/* ---------- state & storage ---------- */
+const KEY = 'unit-tracker-v1';
+const defaults = () => ({ cocktails: [], entries: [], settings: { kcalPerUnit: 98, weekStart: 1 } });
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.entries)) {
+      const d = defaults();
+      return { cocktails: s.cocktails || [], entries: s.entries, settings: Object.assign(d.settings, s.settings || {}) };
+    }
+  } catch (e) {}
+  return defaults();
+}
+let state = load();
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch (e) { toast('Could not save: browser storage is full or blocked'); }
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/* ---------- date helpers (all dates are local YYYY-MM-DD strings) ---------- */
+const DAY = 86400000;
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const pad = n => String(n).padStart(2, '0');
+const toMs = ymd => { const [y, m, d] = ymd.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const fromMs = ms => { const d = new Date(ms); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); };
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const addDays = (ymd, n) => fromMs(toMs(ymd) + n * DAY);
+function weekStart(ymd) {
+  const ms = toMs(ymd), dow = new Date(ms).getUTCDay();
+  return fromMs(ms - ((dow - state.settings.weekStart + 7) % 7) * DAY);
+}
+function bucketKey(ymd, g) {
+  return g === 'day' ? ymd : g === 'week' ? weekStart(ymd) : g === 'month' ? ymd.slice(0, 7) : ymd.slice(0, 4);
+}
+function shortDate(ymd) { const [, m, d] = ymd.split('-').map(Number); return MON[m - 1] + ' ' + d; }
+function longDate(ymd) { const ms = toMs(ymd); const [y, m, d] = ymd.split('-').map(Number); return DOW[new Date(ms).getUTCDay()] + ', ' + MON[m - 1] + ' ' + d + ', ' + y; }
+function label(k, g) {
+  if (g === 'year') return k;
+  if (g === 'month') return MON[+k.slice(5) - 1] + ' ’' + k.slice(2, 4);
+  return shortDate(k);
+}
+function longLabel(k, g) {
+  if (g === 'day') return longDate(k);
+  if (g === 'week') return shortDate(k) + ' – ' + shortDate(addDays(k, 6)) + ', ' + addDays(k, 6).slice(0, 4);
+  if (g === 'month') return MONL[+k.slice(5) - 1] + ' ' + k.slice(0, 4);
+  return k;
+}
+
+/* ---------- number helpers ---------- */
+const r2 = n => Math.round(n * 100) / 100;
+const fmtU = n => String(r2(n));
+const kcalOf = u => u * state.settings.kcalPerUnit;
+const fmtK = n => Math.round(n).toLocaleString();
+const f1 = n => (Math.round(n * 10) / 10).toString();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sig2 = n => Number(Number(n).toPrecision(2));
+const PL = { 0.5: '½', 1: '1', 1.5: '1½', 2: '2' };
+const portLabel = p => PL[p] || String(p);
+
+/* ---------- aggregation ---------- */
+function dayMap() {
+  const m = new Map();
+  for (const e of state.entries) {
+    const r = m.get(e.date) || { units: 0, count: 0 };
+    r.units += e.units * e.portion; r.count++;
+    m.set(e.date, r);
+  }
+  return m;
+}
+function firstDate() {
+  return state.entries.reduce((m, e) => e.date < m ? e.date : m, todayStr());
+}
+function series(from, to, g) {
+  const dm = dayMap(), out = new Map();
+  for (let ms = toMs(from), end = toMs(to); ms <= end; ms += DAY) {
+    const ymd = fromMs(ms), k = bucketKey(ymd, g);
+    let b = out.get(k);
+    if (!b) { b = { key: k, units: 0, drink: 0, days: 0 }; out.set(k, b); }
+    b.days++;
+    const r = dm.get(ymd);
+    if (r) { b.units += r.units; if (r.units > 0) b.drink++; }
+  }
+  return [...out.values()].map(b => ({ ...b, kcal: kcalOf(b.units) }));
+}
+function stats(from, to) {
+  const dm = dayMap();
+  let days = 0, units = 0, drink = 0;
+  for (let ms = toMs(from), end = toMs(to); ms <= end; ms += DAY) {
+    days++;
+    const r = dm.get(fromMs(ms));
+    if (r) { units += r.units; if (r.units > 0) drink++; }
+  }
+  return {
+    days, units, drink, kcal: kcalOf(units),
+    upd: days ? units / days : 0, updd: drink ? units / drink : 0,
+    dpw: days ? drink / days * 7 : 0, dpm: days ? drink / days * 30.4375 : 0, dpy: days ? drink / days * 365.25 : 0
+  };
+}
+
+/* ---------- ui state ---------- */
+const ui = { tab: 'log', date: todayStr(), portion: 1, custom: false, customVal: '', search: '',
+  tf: '30', from: '', to: '', metric: 'units', group: 'auto', tgroup: 'week', limit: 60 };
+let chart = null;
+const $ = s => document.querySelector(s);
+const main = $('#main');
+
+function toast(msg, undo) {
+  $('#toastMsg').textContent = msg;
+  const b = $('#toastBtn');
+  b.classList.toggle('hide', !undo);
+  b.onclick = () => { undo(); $('#toast').classList.remove('show'); };
+  $('#toast').classList.add('show');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => $('#toast').classList.remove('show'), undo ? 6000 : 3000);
+}
+function confirmBox(title, msg, okText, danger) {
+  return new Promise(res => {
+    const d = $('#dlg');
+    d.innerHTML = `<h2 style="margin-top:0">${esc(title)}</h2><p class="mute" style="font-size:15px">${esc(msg)}</p>
+      <div class="row"><button class="btn alt sp" id="dNo">Cancel</button><button class="btn ${danger ? 'danger' : ''} sp" id="dYes">${esc(okText)}</button></div>`;
+    const done = v => { d.close(); res(v); };
+    d.showModal();
+    $('#dNo').onclick = () => done(false);
+    $('#dYes').onclick = () => done(true);
+    d.oncancel = () => res(false);
+  });
+}
+
+/* ---------- LOG tab ---------- */
+function curPortion() {
+  if (!ui.custom) return ui.portion;
+  const v = parseFloat(ui.customVal);
+  return v > 0 && v <= 20 ? v : NaN;
+}
+function renderLog() {
+  const d = ui.date, today = todayStr(), isToday = d === today;
+  const ents = state.entries.filter(e => e.date === d).sort((a, b) => a.t - b.t);
+  const u = ents.reduce((a, e) => a + e.units * e.portion, 0);
+  const ws = weekStart(d), we = addDays(ws, 6), mk = d.slice(0, 7);
+  let wu = 0, mu = 0;
+  for (const e of state.entries) {
+    const x = e.units * e.portion;
+    if (e.date >= ws && e.date <= we) wu += x;
+    if (e.date.slice(0, 7) === mk) mu += x;
+  }
+  main.innerHTML = `
+    <h1>Log</h1>
+    <div class="row">
+      <button class="ic" data-a="dprev" aria-label="Previous day">‹</button>
+      <input type="date" id="dateIn" value="${d}" max="${today}">
+      <button class="ic" data-a="dnext" aria-label="Next day" ${isToday ? 'disabled' : ''}>›</button>
+    </div>
+    ${isToday ? '' : '<div style="margin-top:8px"><button class="chip" data-a="today">Back to today</button></div>'}
+    <div class="card" style="margin-top:12px">
+      <div class="mute">${isToday ? 'Today' : longDate(d)}</div>
+      <div class="row" style="align-items:flex-end;margin:6px 0 10px">
+        <div class="big">${fmtU(u)}</div><div class="mute" style="padding-bottom:4px">units</div>
+        <div class="sp"></div>
+        <div style="text-align:right"><b>${fmtK(kcalOf(u))}</b> <span class="mute">kcal</span></div>
+      </div>
+      <div class="mute">Week ${fmtU(wu)} units · ${MON[+mk.slice(5) - 1]} ${fmtU(mu)} units</div>
+    </div>
+    <h2>Add a drink</h2>
+    <div class="chips" id="portions"></div>
+    <div id="pickWrap"></div>
+    <h2>Logged ${isToday ? 'today' : 'this day'}</h2>
+    <div class="card" id="dayList"></div>`;
+  renderPortions(); renderPick(); renderDayList(ents);
+}
+function renderPortions() {
+  $('#portions').innerHTML =
+    [0.5, 1, 1.5, 2].map(v => `<button class="chip ${!ui.custom && ui.portion === v ? 'on' : ''}" data-a="portion" data-v="${v}">${PL[v]}</button>`).join('') +
+    `<button class="chip ${ui.custom ? 'on' : ''}" data-a="customp">Custom</button>` +
+    (ui.custom ? `<input id="customIn" inputmode="decimal" placeholder="e.g. 0.75" value="${esc(ui.customVal)}" style="width:110px">` : '');
+}
+function renderPick() {
+  const w = $('#pickWrap'); if (!w) return;
+  if (!state.cocktails.length) {
+    w.innerHTML = `<div class="card"><p style="margin-top:0">No cocktails saved yet.</p><button class="btn" data-a="gocock">Add your first cocktail</button></div>`;
+    return;
+  }
+  const last = new Map();
+  for (const e of state.entries) last.set(e.cid, Math.max(last.get(e.cid) || 0, e.t || 0));
+  const q = ui.search.trim().toLowerCase();
+  const list = state.cocktails.filter(c => !q || c.name.toLowerCase().includes(q))
+    .sort((a, b) => (last.get(b.id) || 0) - (last.get(a.id) || 0) || a.name.localeCompare(b.name));
+  const p = curPortion();
+  w.innerHTML = (state.cocktails.length > 7 ? `<input id="search" placeholder="Search cocktails" value="${esc(ui.search)}" style="width:100%;margin-bottom:8px">` : '') +
+    (list.length ? list.map(c => `<button class="pick" data-a="add" data-id="${c.id}"><span>${esc(c.name)}</span>
+      <span class="u">${p && p !== 1 ? fmtU(c.units) + ' × ' + portLabel(p) + ' = <b>' + fmtU(c.units * p) + '</b>' : '<b>' + fmtU(c.units) + '</b>'}</span></button>`).join('')
+      : '<div class="mute">No match.</div>');
+}
+function renderDayList(ents) {
+  $('#dayList').innerHTML = ents.length ? ents.map(e => `<div class="li"><div class="n"><div>${esc(e.name)}</div>
+      <div class="mute">${e.portion !== 1 ? portLabel(e.portion) + ' × ' + fmtU(e.units) : fmtU(e.units) + ' units'}</div></div>
+      <div class="num"><b>${fmtU(e.units * e.portion)}</b><div class="mute">${fmtK(kcalOf(e.units * e.portion))} kcal</div></div>
+      <button class="x" data-a="del" data-id="${e.id}" aria-label="Remove">✕</button></div>`).join('')
+    : '<div class="mute">Nothing logged.</div>';
+}
+function addEntry(cid) {
+  const c = state.cocktails.find(x => x.id === cid), p = curPortion();
+  if (!c) return;
+  if (!(p > 0)) { toast('Enter a valid custom portion'); return; }
+  const e = { id: uid(), date: ui.date, cid: c.id, name: c.name, units: c.units, portion: p, t: Date.now() };
+  state.entries.push(e); save();
+  ui.portion = 1; ui.custom = false; ui.customVal = '';
+  renderLog();
+  toast(`Added ${portLabel(p)} × ${c.name}`, () => { state.entries = state.entries.filter(x => x.id !== e.id); save(); render(); });
+}
+function delEntry(id) {
+  const e = state.entries.find(x => x.id === id); if (!e) return;
+  state.entries = state.entries.filter(x => x.id !== id); save(); renderLog();
+  toast('Removed', () => { state.entries.push(e); save(); render(); });
+}
+
+/* ---------- TRENDS tab ---------- */
+function rangeFor() {
+  const t = todayStr();
+  if (ui.tf === 'custom') {
+    let f = ui.from || addDays(t, -29), to = ui.to || t;
+    if (f > to) [f, to] = [to, f];
+    return [f, to];
+  }
+  if (ui.tf === 'all') return [firstDate(), t];
+  return [addDays(t, -(+ui.tf - 1)), t];
+}
+const TFS = [['7', '7D'], ['30', '30D'], ['90', '90D'], ['180', '6M'], ['365', '1Y'], ['all', 'All'], ['custom', 'Custom']];
+function renderTrends() {
+  const [from, to] = rangeFor();
+  const days = (toMs(to) - toMs(from)) / DAY + 1;
+  let g = ui.group;
+  if (g === 'auto') { g = days <= 60 ? 'day' : days <= 400 ? 'week' : days <= 1500 ? 'month' : 'year'; if (ui.metric === 'drink' && g === 'day') g = 'week'; }
+  const st = stats(from, to);
+  main.innerHTML = `
+    <h1>Trends</h1>
+    <div class="chips" style="margin-top:0">${TFS.map(([v, l]) => `<button class="chip ${ui.tf === v ? 'on' : ''}" data-a="tf" data-v="${v}">${l}</button>`).join('')}</div>
+    ${ui.tf === 'custom' ? `<div class="row" style="margin-bottom:10px"><input type="date" id="tfFrom" value="${from}" max="${todayStr()}"><span class="mute">to</span><input type="date" id="tfTo" value="${to}" max="${todayStr()}"></div>` : ''}
+    <div class="row" style="margin-bottom:10px">
+      <select id="metric" class="sp"><option value="units" ${ui.metric === 'units' ? 'selected' : ''}>Units</option><option value="kcal" ${ui.metric === 'kcal' ? 'selected' : ''}>Calories from alcohol</option><option value="drink" ${ui.metric === 'drink' ? 'selected' : ''}>Drink days</option></select>
+      <select id="group"><option value="auto" ${ui.group === 'auto' ? 'selected' : ''}>Auto</option>${['day', 'week', 'month', 'year'].map(x => `<option value="${x}" ${ui.group === x ? 'selected' : ''}>${x[0].toUpperCase() + x.slice(1)}</option>`).join('')}</select>
+    </div>
+    <div class="card"><div class="chartbox"><canvas id="chart"></canvas></div>
+      <div class="mute" style="margin-top:6px">${longDate(from)} – ${longDate(to)} · grouped by ${g}</div></div>
+    <h2>This range</h2>
+    <div class="stats">
+      <div class="stat"><b>${fmtU(st.units)}</b><span>total units</span></div>
+      <div class="stat"><b>${fmtK(st.kcal)}</b><span>total kcal from alcohol</span></div>
+      <div class="stat"><b>${r2(st.upd)}</b><span>avg units / day</span></div>
+      <div class="stat"><b>${r2(st.updd)}</b><span>avg units / drink day</span></div>
+      <div class="stat"><b>${fmtK(kcalOf(st.upd))}</b><span>avg kcal / day</span></div>
+      <div class="stat"><b>${st.drink} <span style="font-size:14px">of ${st.days}</span></b><span>drink days</span></div>
+      <div class="stat"><b>${f1(st.dpw)}</b><span>avg drink days / week</span></div>
+      <div class="stat"><b>${f1(st.dpm)}</b><span>avg drink days / month</span></div>
+      <div class="stat"><b>${Math.round(st.dpy)}</b><span>avg drink days / year</span></div>
+    </div>
+    <p class="mute">Drink-day averages are rates over the selected range; days with nothing logged count as non-drinking days.</p>`;
+  drawChart(series(from, to, g), g);
+}
+function drawChart(S, g) {
+  if (chart) { chart.destroy(); chart = null; }
+  const cv = $('#chart');
+  if (typeof Chart === 'undefined') { cv.parentElement.innerHTML = '<div class="mute">Chart library failed to load.</div>'; return; }
+  const cs = getComputedStyle(document.documentElement);
+  const acc = cs.getPropertyValue('--acc').trim(), mute = cs.getPropertyValue('--mute').trim(), line = cs.getPropertyValue('--line').trim();
+  const m = ui.metric;
+  const vals = S.map(b => m === 'units' ? r2(b.units) : m === 'kcal' ? Math.round(b.kcal) : b.drink);
+  chart = new Chart(cv, {
+    type: 'bar',
+    data: { labels: S.map(b => label(b.key, g)), datasets: [{ data: vals, backgroundColor: acc, borderRadius: 3, maxBarThickness: 40 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: i => longLabel(S[i[0].dataIndex].key, g),
+            label: i => { const b = S[i.dataIndex]; return [`${r2(b.units)} units`, `${fmtK(b.kcal)} kcal`, `${b.drink} drink day${b.drink === 1 ? '' : 's'} of ${b.days}`]; }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: mute, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: mute, precision: m === 'drink' ? 0 : undefined }, grid: { color: line },
+          title: { display: true, text: m === 'units' ? 'units' : m === 'kcal' ? 'kcal' : 'drink days', color: mute } }
+      }
+    }
+  });
+}
+
+/* ---------- TOTALS tab ---------- */
+function renderTotals() {
+  const t = todayStr(), first = firstDate(), g = ui.tgroup;
+  const all = stats(first, t);
+  let S = series(first, t, g).reverse();
+  if (g === 'day') S = S.filter(b => b.units > 0);
+  const shown = S.slice(0, ui.limit), cur = bucketKey(t, g);
+  main.innerHTML = `
+    <h1>Totals</h1>
+    <div class="chips" style="margin-top:0">${['day', 'week', 'month', 'year'].map(x => `<button class="chip ${g === x ? 'on' : ''}" data-a="tgroup" data-v="${x}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>
+    <div class="stats">
+      <div class="stat"><b>${f1(all.dpw)}</b><span>avg drink days / week</span></div>
+      <div class="stat"><b>${f1(all.dpm)}</b><span>avg drink days / month</span></div>
+      <div class="stat"><b>${Math.round(all.dpy)}</b><span>avg drink days / year</span></div>
+      <div class="stat"><b>${r2(all.upd)}</b><span>avg units / day</span></div>
+    </div>
+    <p class="mute">Since your first entry (${first === t && !state.entries.length ? 'none yet' : longDate(first)}).</p>
+    <div class="card">${shown.length ? shown.map(b => `<div class="li"><div class="n"><div>${longLabel(b.key, g)}${b.key === cur && g !== 'day' ? ' <span class="mute">(so far)</span>' : ''}</div>
+      <div class="mute">${g === 'day' ? fmtK(b.kcal) + ' kcal' : b.drink + ' of ' + b.days + ' days drinking · ' + fmtK(b.kcal) + ' kcal'}</div></div>
+      <div class="num"><b>${fmtU(b.units)}</b><div class="mute">units</div></div></div>`).join('') : '<div class="mute">Nothing logged yet.</div>'}</div>
+    ${S.length > shown.length ? `<button class="btn alt block" data-a="more">Show more (${S.length - shown.length} left)</button>` : ''}`;
+}
+
+/* ---------- COCKTAILS tab ---------- */
+function renderCocktails() {
+  const list = [...state.cocktails].sort((a, b) => a.name.localeCompare(b.name));
+  main.innerHTML = `
+    <h1>Cocktails</h1>
+    <div class="card">
+      <div class="f"><label for="cn" style="margin-top:0">Name</label><input id="cn" autocomplete="off" placeholder="e.g. Old Fashioned"></div>
+      <div class="f"><label for="cu">Units (rounded to 2 significant figures)</label><input id="cu" inputmode="decimal" placeholder="e.g. 1.4"></div>
+      <button class="btn block" style="margin-top:12px" data-a="newc">Save cocktail</button>
+    </div>
+    <div class="card">${list.length ? list.map(c => `<div class="li" data-a="edit" data-id="${c.id}" style="cursor:pointer"><div class="n"><div>${esc(c.name)}</div><div class="mute">${fmtK(kcalOf(c.units))} kcal</div></div><div class="num"><b>${fmtU(c.units)}</b><div class="mute">units</div></div><span class="mute">›</span></div>`).join('') : '<div class="mute">None yet.</div>'}</div>`;
+}
+function parseUnits(v) {
+  const n = parseFloat(String(v).replace(',', '.'));
+  return n > 0 && n < 100 ? sig2(n) : NaN;
+}
+function newCocktail() {
+  const name = $('#cn').value.trim(), u = parseUnits($('#cu').value);
+  if (!name) { toast('Enter a name'); return; }
+  if (!(u > 0)) { toast('Enter units greater than 0'); return; }
+  if (state.cocktails.some(c => c.name.toLowerCase() === name.toLowerCase())) { toast('That name already exists'); return; }
+  state.cocktails.push({ id: uid(), name, units: u }); save();
+  renderCocktails(); toast(`Saved ${name} (${fmtU(u)} units)`);
+}
+function editCocktail(id) {
+  const c = state.cocktails.find(x => x.id === id); if (!c) return;
+  const d = $('#dlg');
+  d.innerHTML = `<h2 style="margin-top:0">Edit cocktail</h2>
+    <div class="f"><label>Name</label><input id="en" value="${esc(c.name)}"></div>
+    <div class="f"><label>Units</label><input id="eu" inputmode="decimal" value="${c.units}"></div>
+    <p class="mute">Changes only affect future entries. Past entries keep the values they were logged with.</p>
+    <div class="row"><button class="btn alt sp" id="eX">Cancel</button><button class="btn sp" id="eS">Save</button></div>
+    <button class="btn danger block" style="margin-top:10px" id="eD">Delete cocktail</button>`;
+  d.showModal();
+  $('#eX').onclick = () => d.close();
+  $('#eS').onclick = () => {
+    const name = $('#en').value.trim(), u = parseUnits($('#eu').value);
+    if (!name || !(u > 0)) { toast('Enter a name and units greater than 0'); return; }
+    if (state.cocktails.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) { toast('That name already exists'); return; }
+    c.name = name; c.units = u; save(); d.close(); render();
+  };
+  $('#eD').onclick = async () => {
+    d.close();
+    if (await confirmBox('Delete ' + c.name + '?', 'Past entries stay in your history.', 'Delete', true)) {
+      state.cocktails = state.cocktails.filter(x => x.id !== id); save(); render();
+    }
+  };
+}
+
+/* ---------- DATA tab ---------- */
+async function persistStatus() {
+  try {
+    if (navigator.storage && navigator.storage.persisted) return (await navigator.storage.persisted()) ? 'Protected from automatic cleanup' : 'Not yet protected';
+  } catch (e) {}
+  return 'Unknown';
+}
+async function renderData() {
+  const ps = await persistStatus();
+  const sw = 'serviceWorker' in navigator && navigator.serviceWorker.controller ? 'Ready for offline use' : 'Offline copy not active yet (open once with a connection)';
+  main.innerHTML = `
+    <h1>Data</h1>
+    <div class="card">
+      <button class="btn block" data-a="export">Export to Excel (.xlsx)</button>
+      <p class="mute" style="margin-bottom:0">Sheets: Entries, Daily (every day, zeros included), Weekly, Monthly, Yearly, Cocktails.</p>
+    </div>
+    <div class="card">
+      <div class="row"><button class="btn alt sp" data-a="backup">Back up (.json)</button><button class="btn alt sp" data-a="restore">Restore…</button></div>
+      <p class="mute" style="margin-bottom:0">Your data lives only on this device. Back up now and then, and before clearing browser data.</p>
+    </div>
+    <h2>Settings</h2>
+    <div class="card">
+      <div class="f"><label style="margin-top:0">Calories per unit</label><input id="setK" inputmode="decimal" value="${state.settings.kcalPerUnit}"></div>
+      <p class="mute">Default 98 = 17.7 mL ethanol × 0.789 g/mL × 7 kcal/g. Only alcohol calories, not mixers.</p>
+      <div class="f"><label>Week starts on</label><select id="setW"><option value="1" ${state.settings.weekStart === 1 ? 'selected' : ''}>Monday</option><option value="0" ${state.settings.weekStart === 0 ? 'selected' : ''}>Sunday</option></select></div>
+    </div>
+    <h2>Storage</h2>
+    <div class="card">
+      <div>${state.entries.length} entries · ${state.cocktails.length} cocktails</div>
+      <div class="mute">${ps}</div><div class="mute">${sw}</div>
+      <div class="row" style="margin-top:10px"><button class="btn alt sp" data-a="persist">Protect storage</button><button class="btn danger sp" data-a="erase">Erase all</button></div>
+    </div>`;
+}
+function download(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function exportXlsx() {
+  if (typeof XLSX === 'undefined') { toast('Export library failed to load'); return; }
+  const t = todayStr();
+  const ents = [...state.entries].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.t || 0) - (b.t || 0));
+  const first = ents.length ? ents[0].date : t;
+  const D = ymd => ({ t: 'n', v: toMs(ymd) / DAY + 25569, z: 'yyyy-mm-dd' });
+  const mk = (header, rows, widths) => {
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    ws['!cols'] = widths.map(w => ({ wch: w }));
+    return ws;
+  };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, mk(['Date', 'Cocktail', 'Portion', 'Units (full cocktail)', 'Units consumed', 'Alcohol kcal'],
+    ents.map(e => [D(e.date), e.name, e.portion, e.units, r2(e.units * e.portion), Math.round(kcalOf(e.units * e.portion))]), [12, 28, 9, 20, 15, 13]), 'Entries');
+  const dm = dayMap(), daily = [];
+  for (let ms = toMs(first), end = toMs(t); ms <= end; ms += DAY) {
+    const ymd = fromMs(ms), r = dm.get(ymd), u = r ? r.units : 0;
+    daily.push([D(ymd), DOW[new Date(ms).getUTCDay()], r2(u), Math.round(kcalOf(u)), r ? r.count : 0, u > 0 ? 1 : 0, D(weekStart(ymd)), ymd.slice(0, 7), +ymd.slice(0, 4)]);
+  }
+  XLSX.utils.book_append_sheet(wb, mk(['Date', 'Day', 'Units', 'Alcohol kcal', 'Drinks logged', 'Drink day (1/0)', 'Week start', 'Month', 'Year'], daily, [12, 6, 8, 13, 13, 15, 12, 9, 7]), 'Daily');
+  for (const [g, name, first1] of [['week', 'Weekly', 'Week start'], ['month', 'Monthly', 'Month start'], ['year', 'Yearly', 'Year start']]) {
+    const rows = series(first, t, g).map(b => [D(g === 'month' ? b.key + '-01' : g === 'year' ? b.key + '-01-01' : b.key),
+      r2(b.units), Math.round(b.kcal), b.drink, b.days, r2(b.units / b.days), r2(b.drink / b.days * 7)]);
+    XLSX.utils.book_append_sheet(wb, mk([first1, 'Units', 'Alcohol kcal', 'Drink days', 'Days tracked', 'Avg units / day', 'Drink days per 7 days'], rows, [13, 8, 13, 11, 13, 15, 20]), name);
+  }
+  XLSX.utils.book_append_sheet(wb, mk(['Cocktail', 'Units', 'Alcohol kcal'],
+    [...state.cocktails].sort((a, b) => a.name.localeCompare(b.name)).map(c => [c.name, c.units, Math.round(kcalOf(c.units))]), [28, 8, 13]), 'Cocktails');
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  download(`unit-tracker-${t}.xlsx`, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  toast('Excel file exported');
+}
+function backup() {
+  const data = { app: 'unit-tracker', version: 1, exported: new Date().toISOString(), ...state };
+  download(`unit-tracker-backup-${todayStr()}.json`, new Blob([JSON.stringify(data)], { type: 'application/json' }));
+  toast('Backup saved');
+}
+$('#file').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; ev.target.value = '';
+  if (!f) return;
+  try {
+    const s = JSON.parse(await f.text());
+    if (!s || !Array.isArray(s.entries) || !Array.isArray(s.cocktails)) throw new Error('bad');
+    if (await confirmBox('Replace current data?', `This backup has ${s.entries.length} entries and ${s.cocktails.length} cocktails. It will replace what is on this device.`, 'Replace', true)) {
+      state = { cocktails: s.cocktails, entries: s.entries, settings: Object.assign(defaults().settings, s.settings || {}) };
+      save(); render(); toast('Restored');
+    }
+  } catch (e) { toast('That file is not a valid backup'); }
+});
+
+/* ---------- routing & events ---------- */
+function render() {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  if (chart && ui.tab !== 'trends') { chart.destroy(); chart = null; }
+  ({ log: renderLog, trends: renderTrends, totals: renderTotals, cocktails: renderCocktails, data: renderData })[ui.tab]();
+}
+document.querySelector('nav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  ui.tab = b.dataset.tab; ui.limit = 60; window.scrollTo(0, 0); render();
+});
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v, id = el.dataset.id;
+  switch (a) {
+    case 'dprev': ui.date = addDays(ui.date, -1); renderLog(); break;
+    case 'dnext': ui.date = addDays(ui.date, 1); renderLog(); break;
+    case 'today': ui.date = todayStr(); renderLog(); break;
+    case 'portion': ui.portion = +v; ui.custom = false; renderPortions(); renderPick(); break;
+    case 'customp': ui.custom = true; renderPortions(); renderPick(); { const i = $('#customIn'); if (i) i.focus(); } break;
+    case 'add': addEntry(id); break;
+    case 'del': delEntry(id); break;
+    case 'gocock': ui.tab = 'cocktails'; render(); break;
+    case 'tf': ui.tf = v; renderTrends(); break;
+    case 'tgroup': ui.tgroup = v; ui.limit = 60; renderTotals(); break;
+    case 'more': ui.limit += 100; renderTotals(); break;
+    case 'newc': newCocktail(); break;
+    case 'edit': editCocktail(id); break;
+    case 'export': exportXlsx(); break;
+    case 'backup': backup(); break;
+    case 'restore': $('#file').click(); break;
+    case 'persist':
+      try { const ok = navigator.storage && navigator.storage.persist ? await navigator.storage.persist() : false; toast(ok ? 'Storage protected' : 'Browser declined. Installing the app to your home screen usually helps.'); } catch (x) { toast('Not supported here'); }
+      renderData(); break;
+    case 'erase':
+      if (await confirmBox('Erase everything?', 'All entries, cocktails and settings on this device will be deleted. Back up first if unsure.', 'Erase all', true)) { state = defaults(); save(); render(); toast('Erased'); }
+      break;
+  }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'dateIn') { if (t.value) { ui.date = t.value > todayStr() ? todayStr() : t.value; renderLog(); } }
+  else if (t.id === 'tfFrom') { ui.from = t.value; renderTrends(); }
+  else if (t.id === 'tfTo') { ui.to = t.value; renderTrends(); }
+  else if (t.id === 'metric') { ui.metric = t.value; renderTrends(); }
+  else if (t.id === 'group') { ui.group = t.value; renderTrends(); }
+  else if (t.id === 'setK') { const n = parseFloat(t.value); if (n > 0 && n < 1000) { state.settings.kcalPerUnit = n; save(); toast('Saved'); } else { t.value = state.settings.kcalPerUnit; toast('Enter a number between 1 and 999'); } }
+  else if (t.id === 'setW') { state.settings.weekStart = +t.value; save(); toast('Saved'); }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'customIn') { ui.customVal = e.target.value; renderPick(); }
+  else if (e.target.id === 'search') { ui.search = e.target.value; const pos = e.target.selectionStart; renderPick(); const s = $('#search'); if (s) { s.focus(); s.setSelectionRange(pos, pos); } }
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+render();
+</script>
+</body>
+</html>
